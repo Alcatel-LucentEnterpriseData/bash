@@ -877,6 +877,8 @@ Optional Features:
   --enable-help-builtin   include the help builtin
   --enable-history        turn on command history
   --enable-job-control    enable job control features
+  --enable-job-backgrounding
+                          enable job backgrounding using ampersand
   --enable-multibyte      enable multibyte characters if OS supports them
   --enable-net-redirections
                           enable /dev/tcp/host/port redirection
@@ -1699,6 +1701,7 @@ fi
 opt_minimal_config=no
 
 opt_job_control=yes
+opt_job_backgrounding=yes
 opt_alias=yes
 opt_readline=yes
 opt_history=yes
@@ -1737,7 +1740,7 @@ if test "${enable_minimal_config+set}" = set; then
 fi;
 
 if test $opt_minimal_config = yes; then
-	opt_job_control=no opt_alias=no opt_readline=no
+	opt_job_control=no opt_job_backgrounding=no opt_alias=no opt_readline=no
 	opt_history=no opt_bang_history=no opt_dirstack=no
 	opt_restricted=no opt_process_subst=no opt_prompt_decoding=no
 	opt_select=no opt_help=no opt_array_variables=no opt_dparen_arith=no
@@ -1827,6 +1830,11 @@ if test "${enable_job_control+set}" = set; then
   enableval="$enable_job_control"
   opt_job_control=$enableval
 fi;
+# Check whether --enable-job-backgrounding or --disable-job-backgrounding was given.
+if test "${enable_job_backgrounding+set}" = set; then
+  enableval="$enable_job_backgrounding"
+  opt_job_backgrounding=$enableval
+fi
 # Check whether --enable-multibyte or --disable-multibyte was given.
 if test "${enable_multibyte+set}" = set; then
   enableval="$enable_multibyte"
@@ -4640,6 +4648,9 @@ fi
 fi
 
 fi
+
+# ALU: Force to built-in termcap library
+bash_cv_termcap_lib=gnutermcap
 
 if test "X$_bash_needmsg" = "Xyes"; then
 echo "$as_me:$LINENO: checking which library has the termcap functions" >&5
@@ -27139,6 +27150,9 @@ fi
 
 fi
 
+# ALU: Force to built-in termcap library
+bash_cv_termcap_lib=gnutermcap
+
 if test "X$_bash_needmsg" = "Xyes"; then
 echo "$as_me:$LINENO: checking which library has the termcap functions" >&5
 echo $ECHO_N "checking which library has the termcap functions... $ECHO_C" >&6
@@ -27283,8 +27297,11 @@ else
 JOBS_O=nojobs.o
 fi
 
-
-
+if test "$opt_job_backgrounding" = yes; then
+cat >>confdefs.h <<\_ACEOF
+#define JOB_BACKGROUNDING 1
+_ACEOF
+fi
 
 LOCAL_DEFS=-DSHELL
 

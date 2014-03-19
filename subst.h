@@ -21,6 +21,10 @@
 #if !defined (_SUBST_H_)
 #define _SUBST_H_
 
+#ifndef __ALU__
+#define __ALU__
+#endif
+
 #include "stdc.h"
 
 /* Constants which specify how to handle backslashes and quoting in
@@ -38,6 +42,9 @@
 #define Q_QUOTED	 0x10
 #define Q_ADDEDQUOTES	 0x20
 #define Q_QUOTEDNULL	 0x40
+#ifdef __ALU__
+#define Q_ALUQUOTING    0x80
+#endif
 
 /* Flag values controlling how assignment statements are treated. */
 #define ASS_APPEND	0x01

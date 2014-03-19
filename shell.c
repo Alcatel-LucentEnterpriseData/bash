@@ -71,6 +71,8 @@
 #  include <readline/history.h>
 #endif
 
+#include <readline/readline.h> /* ALU */
+
 #include <tilde/tilde.h>
 #include <glob/strmatch.h>
 
@@ -101,6 +103,9 @@ extern int array_needs_making;
 extern int gnu_error_format;
 extern char *primary_prompt, *secondary_prompt;
 extern char *this_command_name;
+extern char *the_toplevel_printed_command_except_trap; // ALU
+
+extern rl_hook_func_t *rl_pre_input_hook; // ALU: This is a callback defined in readline.c
 
 /* Non-zero means that this shell has already been run; i.e. you should
    call shell_reinitialize () if you need to start afresh. */
@@ -314,6 +319,14 @@ _cygwin32_check_tmp ()
     }
 }
 #endif /* __CYGWIN__ */
+
+int ALU_readline_hook() {
+	if(the_toplevel_printed_command_except_trap) {
+		rl_insert_text(the_toplevel_printed_command_except_trap);
+		rl_redisplay();
+	}
+	return 0;
+}
 
 #if defined (NO_MAIN_ENV_ARG)
 /* systems without third argument to main() */
@@ -703,6 +716,10 @@ main (argc, argv, env)
       /* Initialize terminal state for interactive shells after the
 	 .bash_profile and .bashrc are interpreted. */
       get_tty_state ();
+
+      /* CFR: Add a hook for readline... */
+      rl_pre_input_hook = &ALU_readline_hook;
+      the_toplevel_printed_command_except_trap = 0;
     }
 
 #if !defined (ONESHOT)

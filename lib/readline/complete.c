@@ -1625,6 +1625,24 @@ _rl_free_match_list (matches)
   free (matches);
 }
 
+// If the suggested completions all start with '<', then they all are values
+// and not keywords. Therefore, we force bash to display them on the next line
+// rather than handle them as legit completions.
+int alu_what_to_do(int what_to_do, char **matches)
+{
+	int i;
+	char allValues = 1;
+	for(i=0; matches[i]; i++) {
+		if(*matches[i] != '<') {
+			allValues = 0;
+		}
+	}
+	if(allValues) {
+		return '?';
+	}
+	return what_to_do;
+}
+
 /* Complete the word at or before point.
    WHAT_TO_DO says what to do with the completion.
    `?' means list the possible completions.
@@ -1694,6 +1712,8 @@ rl_complete_internal (what_to_do)
       RL_UNSETSTATE(RL_STATE_COMPLETING);
       return (0);
     }
+
+  what_to_do = alu_what_to_do(what_to_do, matches);
 
   switch (what_to_do)
     {

@@ -233,4 +233,10 @@ extern void init_job_stats __P((void));
 extern int job_control;
 #endif
 
+/* CFR @todo Need to make this better: this guy should be automatically generated using configure!
+ * Therefore, why isn't that happening?
+ */
+#define JOB_BACKGROUNDING 1
+//#undef JOB_BACKGROUNDING
+
 #endif /* _JOBS_H_ */

@@ -279,6 +279,8 @@ int _rl_bind_stty_chars = 1;
 /* Non-zero means treat 0200 bit in terminal input as Meta bit. */
 int _rl_meta_flag = 0;	/* Forward declaration */
 
+static char prompt_len_env_buffer[32]; // ALU
+
 /* Set up the prompt and expand it.  Called from readline() and
    rl_callback_handler_install (). */
 int
@@ -290,6 +292,18 @@ rl_set_prompt (prompt)
   rl_display_prompt = rl_prompt ? rl_prompt : "";
 
   rl_visible_prompt_length = rl_expand_prompt (rl_prompt);
+
+  // ALU+
+  // Note: Ideally this would be delegated to shell.c where an awesome function
+  // called sh_set_env_value(varname, value) would do all this for us.
+  // Unfortunately, dependencies between bash and its various libraries are
+  // so complex that the mere fact of bringing shell.c to the linker's attention
+  // is enough to get a heap of errors due to (*other*) functions redundancy.
+  // Note: I am not even trying setenv() because it will leak like a sieve.
+  sprintf(prompt_len_env_buffer, "PROMPTLENGTH=%d", rl_visible_prompt_length);
+  putenv(prompt_len_env_buffer);
+  // ALU-
+
   return 0;
 }
   

@@ -2147,6 +2147,16 @@ bind_function_def (name, value)
     }
 }
 
+/* ALU function: decide whether we want our words to remain quoted if they are */
+int
+ALU_assign_in_env (word, quoted)
+     WORD_DESC *word;
+	 int quoted;
+{
+	array_needs_making = 1;
+	return internal_assign_in_env (word, quoted);
+}
+
 /* Add STRING, which is of the form foo=bar, to the temporary environment
    HASH_TABLE (temporary_env).  The functions in execute_cmd.c are
    responsible for moving the main temporary env to one of the other
@@ -2154,6 +2164,15 @@ bind_function_def (name, value)
 int
 assign_in_env (word)
      WORD_DESC *word;
+{
+	return internal_assign_in_env (word, 0);
+}
+
+/* Tis is the internal function for assign_in_env(word) */
+int
+internal_assign_in_env (word, quoted)
+     WORD_DESC *word;
+	 int quoted;
 {
   int offset;
   char *name, *temp, *value;
@@ -2189,7 +2208,7 @@ assign_in_env (word)
       value = expand_string_unsplit_to_string (temp, 0);
       free (temp);
 #else
-      value = expand_assignment_string_to_string (temp, 0);
+      value = expand_assignment_string_to_string (temp, quoted);
 #endif
     }
 

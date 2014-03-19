@@ -204,8 +204,18 @@ progcomp_search (cmd)
 
   item = hash_search (cmd, prog_completes, 0);
 
-  if (item == NULL)
+  if (item == NULL) {
+#ifdef __ALU__
+    /* If not found, it may be a capitalization issue
+	   Let's try again with a well-known command */
+    item = hash_search ("show", prog_completes, 0);
+    if (item == NULL) {
+      return ((COMPSPEC *)NULL);
+	}
+#else
     return ((COMPSPEC *)NULL);
+#endif
+  }
 
   cs = (COMPSPEC *)item->data;
 

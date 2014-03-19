@@ -39,6 +39,7 @@
 #endif
 
 #include <stdio.h>
+
 #include "bashansi.h"
 #include "bashintl.h"
 
@@ -66,6 +67,10 @@
 #include <readline/rlconf.h>
 #include <readline/readline.h>
 #include <readline/history.h>
+
+#ifdef __ALU__
+#include <sys/stat.h>
+#endif
 
 #ifdef STRDUP
 #  undef STRDUP
@@ -1156,12 +1161,25 @@ command_line_to_word_list (line, llen, sentinel, nwp, cwp)
 
 /* Evaluate COMPSPEC *cs and return all matches for WORD. */
 
-STRINGLIST *
-gen_compspec_completions (cs, cmd, word, start, end)
+#ifdef __ALU__
+STRINGLIST * gen_compspec_completions (cs, cmd, word, start, end)
+     COMPSPEC *cs;
+     const char *cmd;
+     const char *word;
+{
+    return alu_gen_compspec_completions(cs, cmd, word, start, end, 0);
+}
+STRINGLIST * alu_gen_compspec_completions (cs, cmd, word, start, end, is_busybox)
+#else
+STRINGLIST * gen_compspec_completions (cs, cmd, word, start, end)
+#endif
      COMPSPEC *cs;
      const char *cmd;
      const char *word;
      int start, end;
+#ifdef __ALU__
+     int is_busybox;
+#endif
 {
   STRINGLIST *ret, *tmatches;
   char *line;
@@ -1336,6 +1354,23 @@ gen_compspec_completions (cs, cmd, word, start, end)
       strlist_dispose (tmatches);
       compspec_dispose (tcs);
     }
+#ifdef __ALU__
+  else if(ret == 0 && is_busybox)
+    {
+      tcs = compspec_create ();
+      tcs->actions = CA_DIRECTORY;
+      tmatches = gen_action_completions (tcs, word);
+      ret = strlist_append (ret, tmatches);
+      strlist_dispose (tmatches);
+      compspec_dispose (tcs);
+      tcs = compspec_create ();
+      tcs->actions = CA_FILE;
+      tmatches = gen_action_completions (tcs, word);
+      ret = strlist_append (ret, tmatches);
+      strlist_dispose (tmatches);
+      compspec_dispose (tcs);
+    }
+#endif
 
   return (ret);
 }
@@ -1352,6 +1387,26 @@ programmable_completions (cmd, word, start, end, foundp)
   COMPSPEC *cs;
   STRINGLIST *ret;
   char **rmatches, *t;
+
+#ifdef __ALU__
+    int is_busybox = 0;
+    struct stat sl_info;
+    char link_name[1024];
+    char target_name[1024];
+    int l;
+    char *pcmd = cmd + strlen(cmd);
+    while(pcmd > cmd && *pcmd != '/') pcmd--;
+    if(*pcmd == '/') pcmd++;
+    sprintf(link_name, "/bin/%s", pcmd);
+    if( 0 == lstat(link_name, &sl_info) &&
+        sl_info.st_mode & S_IFLNK &&
+        -1 != (l = readlink(link_name, target_name, sizeof(target_name) - 1))) {
+            *(target_name + l) = '\0';
+            if(!strcmp(target_name, "/bin/busybox")) {
+                is_busybox = 1;
+            }
+    }
+#endif
 
   /* We look at the basename of CMD if the full command does not have
      an associated COMPSPEC. */
@@ -1376,17 +1431,31 @@ programmable_completions (cmd, word, start, end, foundp)
   if (foundp)
     *foundp = 1|cs->options;
 
+#ifdef __ALU__
+  ret = alu_gen_compspec_completions (cs, cmd, word, start, end, is_busybox);
+#else
   ret = gen_compspec_completions (cs, cmd, word, start, end);
+#endif
 
   compspec_dispose (cs);
 
   if (ret)
     {
-      rmatches = ret->list;
+	  if(ret->list_len > 0) {
+		  rmatches = ret->list;
+	  }
+	  else {
+		  rmatches = (char **)NULL;
+		  if(foundp) {
+			  *foundp = 0;
+		  }
+	  }
       free (ret);
     }
   else
+  {
     rmatches = (char **)NULL;
+  }
 
   return (rmatches);
 }

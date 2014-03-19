@@ -147,6 +147,9 @@ extern void set_itemlist_dirty __P((ITEMLIST *));
 
 extern STRINGLIST *completions_to_stringlist __P((char **));
 
+#ifdef __ALU__
+extern STRINGLIST *alu_gen_compspec_completions __P((COMPSPEC *, const char *, const char *, int, int, int));
+#endif
 extern STRINGLIST *gen_compspec_completions __P((COMPSPEC *, const char *, const char *, int, int));
 extern char **programmable_completions __P((const char *, const char *, int, int, int *));
 

@@ -156,6 +156,7 @@ dnl optional shell features in config.h.in
 opt_minimal_config=no
 
 opt_job_control=yes
+opt_job_backgrounding=yes
 opt_alias=yes
 opt_readline=yes
 opt_history=yes
@@ -194,7 +195,7 @@ AC_ARG_ENABLE(minimal-config, AC_HELP_STRING([--enable-minimal-config], [a minim
 dnl a minimal configuration turns everything off, but features can be
 dnl added individually
 if test $opt_minimal_config = yes; then
-	opt_job_control=no opt_alias=no opt_readline=no
+	opt_job_control=no opt_job_backgrounding=no opt_alias=no opt_readline=no
 	opt_history=no opt_bang_history=no opt_dirstack=no
 	opt_restricted=no opt_process_subst=no opt_prompt_decoding=no
 	opt_select=no opt_help=no opt_array_variables=no opt_dparen_arith=no
@@ -220,6 +221,7 @@ AC_ARG_ENABLE(extended-glob, AC_HELP_STRING([--enable-extended-glob], [include k
 AC_ARG_ENABLE(help-builtin, AC_HELP_STRING([--enable-help-builtin], [include the help builtin]), opt_help=$enableval)
 AC_ARG_ENABLE(history, AC_HELP_STRING([--enable-history], [turn on command history]), opt_history=$enableval)
 AC_ARG_ENABLE(job-control, AC_HELP_STRING([--enable-job-control], [enable job control features]), opt_job_control=$enableval)
+AC_ARG_ENABLE(job-backgrounding, AC_HELP_STRING([--enable-job-backgrounding], [enable job backgrounding]), opt_job_backgrounding=$enableval)
 AC_ARG_ENABLE(multibyte, AC_HELP_STRING([--enable-multibyte], [enable multibyte characters if OS supports them]), opt_multibyte=$enableval)
 AC_ARG_ENABLE(net-redirections, AC_HELP_STRING([--enable-net-redirections], [enable /dev/tcp/host/port redirection]), opt_net_redirs=$enableval)
 AC_ARG_ENABLE(process-substitution, AC_HELP_STRING([--enable-process-substitution], [enable process substitution]), opt_process_subst=$enableval)
@@ -965,6 +967,10 @@ JOBS_O=nojobs.o
 fi
 
 AC_SUBST(JOBS_O)
+
+if test "$opt_job_backgrounding" = yes; then
+AC_DEFINE(JOB_BACKGROUNDING)
+fi
 
 dnl Defines that we want to propagate to the Makefiles in subdirectories,
 dnl like glob and readline

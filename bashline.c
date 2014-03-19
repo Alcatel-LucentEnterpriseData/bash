@@ -1070,8 +1070,13 @@ attempt_shell_completion (text, start, end)
 
 #if defined (PROGRAMMABLE_COMPLETION)
   /* Attempt programmable completion. */
+#ifdef __ALU__
+  if (!matches && prog_completion_enabled &&
+      (progcomp_size () > 0) && current_prompt_string == ps1_prompt)
+#else
   if (!matches && in_command_position == 0 && prog_completion_enabled &&
       (progcomp_size () > 0) && current_prompt_string == ps1_prompt)
+#endif
     {
       int s, e, foundcs;
       char *n;
@@ -1108,9 +1113,9 @@ attempt_shell_completion (text, start, end)
 	  matches = rl_completion_matches (text, prog_complete_return);
 	  if ((foundcs & COPT_DEFAULT) == 0)
 	    rl_attempted_completion_over = 1;	/* no default */
-	  if (matches || ((foundcs & COPT_BASHDEFAULT) == 0))
+	  if (matches || ((foundcs & COPT_BASHDEFAULT) == 0) )
 	    return (matches);
-	}
+	  }
     }
 #endif
 
@@ -1177,8 +1182,9 @@ bash_default_completion (text, start, end, qc, compflags)
 	     still want to be able to complete partial pathnames, so set the
 	     completion ignore function to something which will remove
 	     filenames and leave directories in the match list. */
-	  if (matches == (char **)NULL)
+	  if (matches == (char **)NULL) {
 	    rl_ignore_some_completions_function = bash_ignore_filenames;
+      }
 	  else if (matches[1] == 0 && CMD_IS_DIR(matches[0]) && dot_in_path == 0)
 	    /* If we found a single match, without looking in the current
 	       directory (because it's not in $PATH), but the found name is

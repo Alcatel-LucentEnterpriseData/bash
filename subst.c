@@ -225,6 +225,11 @@ static int skip_double_quoted __P((char *, size_t, int));
 static char *extract_delimited_string __P((char *, int *, char *, char *, char *, int));
 static char *extract_dollar_brace_string __P((char *, int *, int, int));
 
+#ifdef __ALU__
+static char *ALU_string_extract_double_quoted __P((char *, int *, int));
+static inline char *ALU_string_extract_single_quoted __P((char *, int *));
+#endif
+
 static char *pos_params __P((char *, int, int, int));
 
 static unsigned char *mb_getcharlens __P((char *, int));
@@ -607,6 +612,24 @@ string_extract (string, sindex, charlist, flags)
   return (temp);
 }
 
+#ifdef __ALU__
+static char *
+ALU_string_extract_double_quoted (string, sindex, stripdq)
+     char *string;
+     int *sindex, stripdq;
+{
+  char *t = string_extract_double_quoted(string, sindex, stripdq);
+  int len = strlen(t);
+  char *temp = (char *)xmalloc(3 + len);
+  strcpy(temp + 1, t);
+  temp[0] = '"';
+  temp[len + 1] = '"';
+  temp[len + 2] = '\0';
+  xfree(t);
+  return temp;
+}
+#endif
+
 /* Extract the contents of STRING as if it is enclosed in double quotes.
    SINDEX, when passed in, is the offset of the character immediately
    following the opening double quote; on exit, SINDEX is left pointing after
@@ -835,6 +858,49 @@ skip_double_quoted (string, slen, sind)
 
   return (i);
 }
+
+#ifdef __ALU__
+/* I do not think that this function supports multibyte chars */
+static inline char *
+ALU_string_extract_single_quoted (string, sindex)
+     char *string;
+     int *sindex;
+{
+  register int i;
+  size_t slen;
+  char *t;
+  DECLARE_MBSTATE;
+
+  // We're here because of a single quote, right before *sindex...capture it.
+  if(*sindex)
+    *sindex -= 1;
+
+  /* Don't need slen for ADVANCE_CHAR unless multibyte chars possible. */
+  slen = (MB_CUR_MAX > 1) ? strlen (string + *sindex) + *sindex : 0;
+  i = *sindex + 1; // Walk past that opening quote
+  while (string[i] && string[i] != '\'')
+    ADVANCE_CHAR (string, slen, i);
+
+  // Capture closing quote
+  if(string[i])
+    i++;
+
+  t = substring (string, *sindex, i);
+
+  // Funny thing: CLI's subparsers don't understand 'blah blah' but they
+  // do understand "blah blah"
+  // Thus, once we are done with all the expansion nonsense, we can pretend
+  // that, after all, these were double quotes and keep it happy.
+  if( i > *sindex) {
+    t[0] = '"';
+    t[i - *sindex - 1] = '"';
+  }
+
+  *sindex = i;
+
+  return (t);
+}
+#endif
 
 /* Extract the contents of STRING as if it is enclosed in single quotes.
    SINDEX, when passed in, is the offset of the character immediately
@@ -7097,6 +7163,11 @@ add_twochars:
 	    goto add_character;
 
 	  t_index = ++sindex;
+#ifdef __ALU__
+      if ((quoted & Q_ALUQUOTING))
+	      temp = ALU_string_extract_double_quoted (string, &sindex, 0);
+      else
+#endif
 	  temp = string_extract_double_quoted (string, &sindex, 0);
 
 	  /* If the quotes surrounded the entire string, then the
@@ -7247,6 +7318,11 @@ add_twochars:
 	    goto add_character;
 
 	  t_index = ++sindex;
+#ifdef __ALU__
+      if ((quoted & Q_ALUQUOTING))
+	      temp = ALU_string_extract_single_quoted (string, &sindex);
+      else
+#endif
 	  temp = string_extract_single_quoted (string, &sindex);
 
 	  /* If the entire STRING was surrounded by single quotes,

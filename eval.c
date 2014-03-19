@@ -57,6 +57,11 @@ extern int expand_aliases;
 static void send_pwd_to_eterm __P((void));
 static sighandler alrm_catcher __P((int));
 
+#ifdef __ALU__
+/* CFR: This is the latest top-level command...used in ALU hook */
+char *the_toplevel_printed_command_except_trap;
+#endif
+
 /* Read and execute commands until EOF is reached.  This assumes that
    the input source has already been initialized. */
 int
@@ -85,6 +90,14 @@ reader_loop ()
 
       if (code != NOT_JUMPED)
 	{
+#ifdef __ALU__
+   	  // ALU: We are jumping ship => forget last memorized command
+	  if(the_toplevel_printed_command_except_trap) {
+		  FREE(the_toplevel_printed_command_except_trap);
+		  the_toplevel_printed_command_except_trap = 0;
+	  }
+#endif
+
 	  indirection_level = our_indirection_level;
 
 	  switch (code)
@@ -139,6 +152,13 @@ reader_loop ()
 	    }
 	  else if (current_command = global_command)
 	    {
+#ifdef __ALU__
+    	  if(the_toplevel_printed_command_except_trap) {
+    		  FREE(the_toplevel_printed_command_except_trap);
+    		  the_toplevel_printed_command_except_trap = 0;
+    	  }
+#endif
+
 	      global_command = (COMMAND *)NULL;
 	      current_command_number++;
 
@@ -154,6 +174,24 @@ reader_loop ()
 		  dispose_command (current_command);
 		  current_command = (COMMAND *)NULL;
 		}
+	      else {
+#ifdef __ALU__
+	    	  // ALU: Not a real command...forget memorized command if any
+	    	  if(the_toplevel_printed_command_except_trap) {
+	    		  FREE(the_toplevel_printed_command_except_trap);
+	    		  the_toplevel_printed_command_except_trap = 0;
+	    	  }
+#endif
+	      }
+	    }
+	  	else {
+#ifdef __ALU__
+	  		  // ALU: There was no global command...empty command?
+	    	  if(the_toplevel_printed_command_except_trap) {
+	    		  FREE(the_toplevel_printed_command_except_trap);
+	    		  the_toplevel_printed_command_except_trap = 0;
+	    	  }
+#endif
 	    }
 	}
       else

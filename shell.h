@@ -43,6 +43,11 @@
 
 extern int EOF_Reached;
 
+/* Alcatel-Lucent: Rushmore/6900 */
+#ifndef __ALU__
+#define __ALU__
+#endif
+
 #define NO_PIPE -1
 #define REDIRECT_BOTH -2
 

@@ -195,6 +195,9 @@ command_connect (com1, com2, connector)
      COMMAND *com1, *com2;
      int connector;
 {
+  /*
+   * CFR: When we connect to a command, connector can be any valid connector, including ampersand
+   */
   CONNECTION *temp;
 
   temp = (CONNECTION *)xmalloc (sizeof (CONNECTION));

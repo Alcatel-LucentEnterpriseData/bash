@@ -418,7 +418,7 @@ HSOURCES = shell.h flags.h trap.h hashcmd.h hashlib.h jobs.h builtins.h \
 
 SOURCES	 = $(CSOURCES) $(HSOURCES) $(BUILTIN_DEFS)
 
-# header files chosen based on running of configure
+# header files chosen based on running of COnfigure
 SIGNAMES_H = @SIGNAMES_H@
 
 # object files chosen based on running of configure
@@ -681,17 +681,6 @@ config.h:	stamp-h
 
 stamp-h:	config.status $(srcdir)/config.h.in $(srcdir)/config-top.h $(srcdir)/config-bot.h
 	CONFIG_FILES= CONFIG_HEADERS=config.h $(SHELL) ./config.status
-
-config.status:	$(srcdir)/configure
-	$(SHELL) ./config.status --recheck
-
-# comment out for distribution
-$(srcdir)/configure:	$(srcdir)/configure.in $(srcdir)/aclocal.m4 $(srcdir)/config.h.in
-	cd $(srcdir) && autoconf
-
-# for chet
-reconfig: force
-	sh $(srcdir)/configure -C
 
 #newversion:	mkversion
 #	$(RM) .build

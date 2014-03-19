@@ -24,6 +24,7 @@
 #endif /* _AIX && RISC6000 && !__GNUC__ */
 
 #include <stdio.h>
+#include <ctype.h> /* __ALU__ */
 #include "chartypes.h"
 #include "bashtypes.h"
 #if !defined (_MINIX) && defined (HAVE_SYS_FILE_H)
@@ -202,6 +203,12 @@ char *this_command_name;
    the_printed_command), except when a trap is being executed.  Useful for
    a debugger to know where exactly the program is currently executing. */
 char *the_printed_command_except_trap;
+
+#ifdef __ALU__
+#include "subst.h"
+/* CFR: This is the latest top-level command...used in ALU hook */
+char *the_toplevel_printed_command_except_trap;
+#endif
 
 static COMMAND *currently_executing_command;
 
@@ -659,7 +666,7 @@ execute_command_internal (command, asynchronous, pipe_in, pipe_out,
     {
     case cm_simple:
       {
-	save_line_number = line_number;
+    	  save_line_number = line_number;
 	/* We can't rely on variables retaining their values across a
 	   call to execute_simple_command if a longjmp occurs as the
 	   result of a `return' builtin.  This is true for sure with gcc. */
@@ -1506,6 +1513,16 @@ execute_connection (command, asynchronous, pipe_in, pipe_out, fds_to_close)
     {
     /* Do the first command asynchronously. */
     case '&':
+
+#if !defined (JOB_BACKGROUNDING)
+      fprintf(stderr, "Error:\n"
+              "This command contains the character '&' which is used to ask Bash\n"
+              "to start a background process.\n"
+              "In AOS, Background processes are disabled, therefore this command was aborted.\n");
+      exec_result = EXECUTION_FAILURE;
+      break;
+#endif
+
       tc = command->value.Connection->first;
       if (tc == 0)
 	return (EXECUTION_SUCCESS);
@@ -2862,6 +2879,58 @@ execute_simple_command (simple_command, pipe_in, pipe_out, async, fds_to_close)
 	}
     }
 
+#ifdef __ALU__
+  /*
+   * CFR: we are not doing this earlier in an attempt to preserve the
+   * original form of the command string
+   * Yes, there are a few tests. I am trying to be as unobtrusive as possible.
+  */
+  if(simple_command->words
+          && simple_command->words->word
+          && simple_command->words->word->word) {
+      char *wp = simple_command->words->word->word;
+#ifdef __ALU__GREEDY_LOWERCASING__
+      /*
+       * There be dragons! Do not use unless
+       * you know what you are doing.
+       *
+       * Yes, this code is more straightforward.
+       * However, it also has unexpected side effects
+       * impacting bash commands that are silently
+       * run "around" other commands. CLI is devious
+       * that way.
+       */
+      while(*wp) {
+          *wp++ = tolower(*wp);
+      }
+#else
+      char *l_word = (char*)xmalloc(strlen(wp)+1);
+      char *lp = l_word;
+      char lowercased = 0;
+      while(*wp) {
+          char lc = tolower(*wp);
+          if(lc != *wp)
+              lowercased = 1;
+          *lp++ = lc;
+          wp++;
+      }
+      *lp = '\0';
+      if(lowercased) {
+        struct stat l_info;
+        char *l_path = (char*)xmalloc(strlen(l_word)+6);
+        sprintf(l_path, "/bin/%s", l_word);
+        if(0 == stat(l_path, &l_info)
+                &&  (l_info.st_mode & S_IXUSR)
+                && !(l_info.st_mode & S_IFDIR)) {
+            strcpy(simple_command->words->word->word, l_word);
+        }
+        xfree(l_path);
+      }
+      xfree(l_word);
+#endif
+  }
+#endif
+
   /* If we are re-running this as the result of executing the `command'
      builtin, do not expand the command words a second time. */
   if ((simple_command->flags & CMD_INHIBIT_EXPANSION) == 0)
@@ -3054,6 +3123,59 @@ execute_simple_command (simple_command, pipe_in, pipe_out, async, fds_to_close)
 	  goto return_result;
 	}
     }
+
+#ifdef __ALU__
+//  if(the_toplevel_printed_command_except_trap) {
+//	  FREE(the_toplevel_printed_command_except_trap);
+//	  the_toplevel_printed_command_except_trap = 0;
+//printf("RESET #1\n");
+//  }
+
+  if(executing) {
+	  unsigned int l = strlen(the_printed_command_except_trap);
+	  if(	l > 2 &&
+			'?' == *(the_printed_command_except_trap + l - 1) &&
+			' ' == *(the_printed_command_except_trap + l - 2)) {
+		  the_toplevel_printed_command_except_trap = strdup(the_printed_command_except_trap);
+		  *(the_toplevel_printed_command_except_trap + l - 1) = '\0';
+	  }
+  }
+  // Use this one rather than command_line because command_line is cleaned up
+  // and as such does not contain double quotes anymore.
+  // Subsystem parsers need double quotes.
+  WORD_DESC wd;
+  wd.word = (char *)malloc(sizeof(char) * (strlen(the_printed_command_except_trap) + 16));
+  sprintf(wd.word, "CMDLINE=%s", the_printed_command_except_trap);
+  wd.flags = W_ASSIGNMENT;
+  ALU_assign_in_env(&wd, Q_ALUQUOTING);
+  free(wd.word);
+#if defined (ALIAS)
+  WORD_DESC wd2;
+  int wd2_len = 16;
+  alias_t **alias_list = all_aliases();
+  if(alias_list) {
+	  int i;
+	  for(i=0; alias_list[i]; i++) {
+		  wd2_len += 5 + strlen(alias_list[i]->name) + strlen(alias_list[i]->value);
+	  }
+	  wd2.word = (char *)malloc(sizeof(char) * wd2_len);
+	  sprintf(wd2.word, "%s", "ALIASES=");
+	  for(i=0; alias_list[i]; i++) {
+		  if(i) {
+			  strcat(wd2.word, "\t");
+		  }
+		  strcat(wd2.word, alias_list[i]->name);
+		  strcat(wd2.word, "=\"");
+		  strcat(wd2.word, alias_list[i]->value);
+		  strcat(wd2.word, "\"");
+	  }
+	  wd2.flags = W_ASSIGNMENT;
+	  ALU_assign_in_env(&wd2, 1);
+	  free(wd2.word);
+  }
+#endif
+#endif
+
 
   if (command_line == 0)
     command_line = savestring (the_printed_command_except_trap);
@@ -3725,10 +3847,22 @@ execute_disk_command (words, redirects, command_line, pipe_in, pipe_out,
       if (async)
 	interactive = old_interactive;
 
-      if (command == 0)
+    if (command == 0)
 	{
-	  internal_error (_("%s: command not found"), pathname);
-	  exit (EX_NOTFOUND);	/* Posix.2 says the exit status is 127 */
+#ifdef __ALU__
+    	  // CFR: Oh how dirty. And yet it works!
+          // This is a last-resort attempt to run a CLI command;
+          // this would help for instance if the command was not
+          // properly linked to /vroot/bin
+          //
+    	  // First, I tell bash that the command we are invoking today really is 'clicomp'
+    	  // But I also leave the actual command name in arg0.
+    	  // WARNING WARNING WARNING: *** arg0 and the command name actually differ ***
+    	  command = strdup("/bin/clicomp");
+#else
+          internal_error (_("%s: command not found"), pathname);
+          exit (EX_NOTFOUND);	/* Posix.2 says the exit status is 127 */
+#endif
 	}
 
       /* Execve expects the command name to be in args[0].  So we
